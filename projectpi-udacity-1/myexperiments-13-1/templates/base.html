@@ -2,46 +2,68 @@
 
 <html>
     
+    <head>
+        <link type="text/css" rel="stylesheet" href="/static/main.css" />
+        
+        <title>PT Blog</title>
+    </head>
+    
     <body style="margin: 0">
         
-        <a href="/blog" class="main-title"> <h1 style="background-color: #ddd; color: #888; margin: 0 height: 50px" >Blog - Piyush</h1></a>
+        <a href="/blog" class="main-title">
+            PT Blog
+        </a>
         
-        
-        <br>
-        <table>
-            <tr>
-                <tc>
-                    <td>
-                        <a href="/ascii" class="main-title">ASCII</a>
-                    </td>
-                    <tc>
-                        <td>
-                            <a href="/rot13" class="main-title">ROT13</a>
-                        </td>
-                    </tc>
-                   <!-- <tc>
-                        <td>
-                            <a href="/form" class="main-title">FORM</a>
-                        </td>
-                    </tc>-->
-                    <tc>
-                        <td>
-                            <a href="/blog" class="main-title">BLOG</a>
-                        </td>
-                    </tc>
-                    <tc>
-                        <td>
-                            <a href="/blog/signup" class="main-title">SIGNUP</a>
-                        </td>
-                    </tc>
-                    </tr>
-            
-        </table>
-        
+        <div class="login-area">
+            {% if user %}
+            {{user.name}} (<a class="login-link" href="/logout">logout</a>)
+            {% else %}
+            <a class="login-link" href="/login">login</a>
+            |
+            <a class="login-link" href="/signup">signup</a>
+            {% endif %}
+            </div>
+            <div id="content"
         {% block content %}
         
         {% endblock %}
-        
+        </div>
+        <div>
+            <em>
+                Brought to you by Jamuura!
+            </em>
+        </div>
     </body>
     
 </html>
+<!-- 
+ 
+ 
+ <br>
+ <table>
+ <tr>
+ <tc>
+ <td>
+ <a href="/ascii" class="main-title">ASCII</a>
+ </td>
+ <tc>
+ <td>
+ <a href="/rot13" class="main-title">ROT13</a>
+ </td>
+ </tc>
+ <tc>
+    <td>
+        <a href="/blog" class="main-title">BLOG</a>
+    </td>
+</tc>
+<tc>
+    <td>
+        <a href="/blog/signup" class="main-title">SIGNUP</a>
+    </td>
+</tc>
+</tr>
+
+</table>
+
+
+ -->
