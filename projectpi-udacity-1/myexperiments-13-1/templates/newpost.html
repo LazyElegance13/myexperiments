@@ -1,69 +1,22 @@
 {% extends "base.html" %}
- {% block content %}
- 
-<head>
-    <title>New Post</title>
-    
-    <style type="text/css">
-        body{
-            font-family: sans-serif;
-            width: 800px;
-            margin: 0 auto;
-            padding: 10px;
-        }
-    
-    .error {
-        color: red;
-    }
-    
-    label {
-        display: block;
-        font-size: 20px;
-    }
-    
-    input[type=text] {
-        width: 400px;
-        font-size: 20px;
-    }
-    textarea {
-        width: 400px;
-        height: 200px;
-        font-size: 17px;
-        font-family: sans-serif;
-    }
-    
-    input[type=submit] {
-        font-size: 24px;
-    }
-    
-    hr {
-        margin: 20px auto;
-    }
+{% block content %}
 
-    </style>
-    
-</head>
-
-<body>
-    <h1>Write a new blog post</h1>
+<h2>Write a new blog post</h2>
     <form method="post">
         <label>
-            <div>Title</div>
-            <input type="text" name="title" value="{{title}}">
-                </label>
-        
-        <label>
-            <div>Body</div>
-            <textarea name="bodytext" value="{{bodytext}}"></textarea>
+            <div>subject</div>
+            <input type="text" name="subject" value="{{subject}}">
         </label>
-        
+    
+        <label>
+            <div>blog</div>
+            <textarea name="content">{{content}}</textarea>
+        </label>
+    
         <div class="error">{{error}}</div>
-        
+    
         <input type="submit" value="Submit">
-            </form>
-    
-    <hr>
-    
-</body>
+    </form>
+
 {% endblock %}
 

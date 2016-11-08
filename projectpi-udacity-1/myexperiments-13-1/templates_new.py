@@ -122,7 +122,7 @@ class Handler(webapp2.RequestHandler):
             '%s=%s; Path=/' % (name, cookie_val))
     
     def read_secure_cookie(self, name):
-        cookie_val = self.request.cookies.get('name')
+        cookie_val = self.request.cookies.get(name)
         return cookie_val and check_secure_val(cookie_val)
     
     def login(self, user):
@@ -215,7 +215,7 @@ class Permalink(Handler):
             self.error(404)
             return
         
-        self.render('blogpost.html', post=post)
+        self.render('permalink.html', post=post)
 
 
 class NewBlogPost(Handler):
@@ -224,11 +224,6 @@ class NewBlogPost(Handler):
             self.render("newpost.html")
         else:
             self.redirect("/login")
-
-#    def render_post(self, subject="", content="", error=""):
-#        response.out.write('<b>' + post.subject + '</b><br>')
-#        self.render("newpost.html", subject=subject, content=content, error=error)
-
 
     def post(self):
         if not self.user:
@@ -240,7 +235,7 @@ class NewBlogPost(Handler):
         if subject and content:
             p = Post(parent = blog_key(), subject = subject, content = content)
             p.put()
-            self.redirect("/blog/%d"% str(p.key().id()))
+            self.redirect("/blog/%s"% str(p.key().id()))
         else:
             error = "we need both a subject and content!"
             self.render("newpost.html", subject=subject, content=content, error=error)
