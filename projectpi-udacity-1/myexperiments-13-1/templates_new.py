@@ -22,105 +22,153 @@ import logging
 from google.appengine.api import memcache
 from google.appengine.ext import db
 
+#
 DEBUG = os.environ['SERVER_SOFTWARE'].startswith('Development')
 
-SECRET = "zakira"
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), autoescape = True)
 
-art_key = db.Key.from_path('ASCIIChan', 'arts')
 
+
+#
 def console(s):
     sys.stderr.write('%s\n' % repr(s))
-form="""
-<form method="post">
-    What is your birthday?
-    <br>
-    <label>
-        Month 
-        <input type="text" name="month" value=%(month)s>
-        </label>
-    <label>
-        Day 
-        <input type="text" name="day" value=%(day)s></label>
-    <label>Year <input type="text" name="year" value=%(year)s></label>  
-    <div style="color: red">%(error)s</div>    
-    <br>
-    <br>    
-    <input type="submit">
-</form>
-"""
 
-months = ['January', 'February', 'March', 'April', 
-             'May', 'June', 'July', 'August', 'September', 
-             'October', 'November', 'December']
-month_abbvs = dict((m[:3].lower(), m) for m in months)
 
-class Handler(webapp2.RequestHandler):
-    def write(self, *a, **kw):
-        self.response.out.write(*a, **kw)
-        
-    def render_str(self, template, **params):
-        t = jinja_env.get_template(template)
+#form="""
+#<form method="post">
+#    What is your birthday?
+#    <br>
+        #    <label>
+        #       Month
+        #  <input type="text" name="month" value=%(month)s>
+        #        </label>
+        #<label>
+        # Day
+        #<input type="text" name="day" value=%(day)s></label>
+        #<label>Year <input type="text" name="year" value=%(year)s></label>
+        #<div style="color: red">%(error)s</div>
+        #<br>
+        #<br>
+#<input type="submit">
+
+#</form>
+#"""
+
+def render_str(self, template, **params):
+    t = jinja_env.get_template(template)
         return t.render(params)
 
-    def render(self, template, **kw):
-        self.write(self.render_str(template, **kw))
-        
-class MainPage(Handler):
-    def get(self):
-        items = self.request.get_all("food")
-        self.render("shopping_list.html", items = items)        
-  
-def valid_month(month):
-    if month:
-        short_month = month[:3].lower() 
-        return month_abbvs.get(short_month)
 
-def valid_day(day):
-    if day and day.isdigit():
-        day = int(day)
-        if day > 0 and day <= 31:
-            return day
+#UTILITIES
 
-def valid_year(year):
-    if year and year.isdigit():
-        year = int(year)
-        if year > 1900 and year < 2020:
-            return year
+#months = ['January', 'February', 'March', 'April',
+#          'May', 'June', 'July', 'August', 'September',
+#          'October', 'November', 'December']
+#month_abbvs = dict((m[:3].lower(), m) for m in months)
 
-class FormHandler(webapp2.RequestHandler):
-    def write_form(self, error="", month="", day="", year="" ):
-        self.response.out.write(form % {"error" : error, 
-                                        "month": escape_html(month), 
-                                        "day" : escape_html(day), 
-                                        "year" : escape_html(year)})
-    
-    def get(self):
-        self.write_form()
-        
-    def post(self):
-        user_month = self.request.get('month')
-        user_day = self.request.get('day')
-        user_year = self.request.get('year')
-        
-        month = valid_month(user_month)
-        day = valid_day(user_day)
-        year = valid_year(user_year)
-        
-        if not (month and day and year):
-            self.write_form("That doesn't look valid to me, friend.", user_month, user_day, user_year)
-        else:            
-            self.redirect("thanks")
 
-class ThanksHandler(webapp2.RequestHandler):
-    def get(self):
-            self.response.write("That's a toltally valid day!")
+#def valid_month(month):
+#    if month:
+#        short_month = month[:3].lower()
+#        return month_abbvs.get(short_month)
+
+#def valid_day(day):
+#    if day and day.isdigit():
+#        day = int(day)
+#        if day > 0 and day <= 31:
+#            return day
+
+#def valid_year(year):
+#    if year and year.isdigit():
+#        year = int(year)
+#        if year > 1900 and year < 2020:
+#            return year
 
 def escape_html(s):
-# Steve's second solution
+    # Steve's second solution
     import cgi
     return cgi.escape(s, quote = True)
+
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+def valid_username(username):
+    if USER_RE.match(username):
+        return username
+
+PASS_RE = re.compile(r"^.{3,20}$")
+def valid_password(password):
+    if PASS_RE.match(password):
+        return password
+
+EMAIL_RE  = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
+def valid_email(email):
+    if not email or EMAIL_RE.match(email):
+        return True
+
+SECRET = "ohcrap" # should ideally be stored in a separate imported file on the production server
+
+def hash_str(s):
+    return hmac.new(SECRET, s).hexdigest()
+
+def make_secure_val(s):
+    return "%s|%s" % (s, hash_str(s))
+
+def check_secure_val(h):
+    #my implementation
+    #l =  h.find(",")
+    #print h[0:l]
+    # if hash_str(h[0:l]) == h[l+1:]:
+    #    return h[0:l]
+    # steve's implementation
+    val = h.split('|')[0]
+    if h == make_secure_val(val):
+        return val
+
+def make_salt():
+    return "".join(random.choice(letters) for a in range(5))
+
+def make_pw_hash(name, pw, salt=None):
+    if not salt:
+        salt = make_salt()
+    h = hashlib.sha256(name + pw + salt).hexdigest()
+    return "%s|%s" % (h, salt)
+
+def valid_pw(name, pw, h):
+    salt = h.split('|')[1]
+    return h == make_pw_hash(name, pw, salt)
+#    return h == make_pw_hash(name, pw, h[-5:])
+
+
+# FORM
+#class FormHandler(webapp2.RequestHandler):
+#    def write_form(self, error="", month="", day="", year="" ):
+#        self.response.out.write(form % {"error" : error,
+#                                        "month": escape_html(month),
+#                                        "day" : escape_html(day),
+#                                        "year" : escape_html(year)})
+    
+    #    def get(self):
+    #     self.write_form()
+        
+        #def post(self):
+        #user_month = self.request.get('month')
+        #user_day = self.request.get('day')
+        #user_year = self.request.get('year')
+        
+        #month = valid_month(user_month)
+        #day = valid_day(user_day)
+        #year = valid_year(user_year)
+        
+        #if not (month and day and year):
+        #    self.write_form("That doesn't look valid to me, friend.", user_month, user_day, user_year)
+        #else:
+#    self.redirect("thanks")
+
+#class ThanksHandler(webapp2.RequestHandler):
+#    def get(self):
+#            self.response.write("That's a toltally valid day!")
+
+# ROT13
 
 class RotHandler(Handler):
 #    def write_form(self, text=""):
@@ -134,82 +182,55 @@ class RotHandler(Handler):
         text = self.request.get('text')
         if text:        
             rot13 = text.encode('rot13')
+
         self.render('rot13-form.html', text = rot13)
 
+# COOKIE
 
-USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
-def valid_username(username):
-    if USER_RE.match(username):
-        return username
-
-PASS_RE = re.compile(r"^.{3,20}$")
-def valid_password(password):
-    if PASS_RE.match(password):    
-        return password 
-
-EMAIL_RE  = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
-def valid_email(email):
-    if not email or EMAIL_RE.match(email):
-        return True
-    
-class SignupHandler(Handler):
+class CookieCount(Handler):
     def get(self):
-        self.render('signup.html')
-    
-    def post(self):
-        have_error =False
-        username = self.request.get("username")
-        password= self.request.get("password")
-        verify = self.request.get("verify")
-        email = self.request.get("email")
-
-        params = dict(username = username, email = email)
-        username = valid_username(username)
-        
-        username_cookie_str = self.request.cookies.get('username')
-        if username_cookie_str:
-            cookie_val= check_secure_val(username_cookie_str)
-            if cookie_val and username == cookie_val:
-                params['error_username'] = "That user already exists."
-                have_error = True
-            elif not valid_username(username):
-                params['error_username'] = "That's not a valid username."
-                have_error = True
-        
-        if not valid_password(password):
-            params['error_password'] = "That's not a valid password."
-            have_error = True
-        elif password != verify:
-            params['error_verify'] = "Your password's didn't match."
-            have_error = True
-
-        if not valid_email(email):
-            params['error_email'] = "That's not a valid email."
-            have_error = True
-    
-        if have_error:
-            self.render('signup.html', **params)
-        else:
-            self.response.headers['Content-Type'] = 'text/plain'
-            new_cookie_val = make_secure_val(str(username))
-            self.response.headers.add_header('Set-Cookie', 'username=%s; Path=/' % new_cookie_val)
-            self.redirect('/blog/welcome')
-
-class Welcome(Handler):
-    def get(self):
-        username_cookie_str = self.request.cookies.get('username')
-        if username_cookie_str:
-            cookie_val= check_secure_val(username_cookie_str)
+        self.response.headers['Content-Type'] = 'text/plain'
+        visits = 0
+        visit_cookie_str = self.request.cookies.get('visits')
+        if visit_cookie_str:
+            cookie_val= check_secure_val(visit_cookie_str)
             if cookie_val:
-                self.render("welcome.html", username = cookie_val)
+                visits = int(cookie_val)
+        # make sure visits is an int
+        #if visits.isdigit():
+        #    visits= int(visits) + 1
+        #else:
+        #    visits = 0
+        visits += 1
+        
+        new_cookie_val = make_secure_val(str(visits))
+        
+        self.response.headers.add_header('Set-Cookie', 'visits=%s' % new_cookie_val)
+        
+        if visits > 1000:
+            self.write("You are the best ever")
         else:
-            self.redirect("/blog/signup")
-    
+            self.write("You've been here %s times!" % visits)
+
+# FIZZBUZZ
+
 class FizzHandler(Handler):
     def get(self):
         n = self.request.get('n', 0)
         n = n and int(n)              
-        self.render("fizzbuzz.html", n=n)        
+        self.render("fizzbuzz.html", n=n)
+
+# SHOPPING LIST
+class MainPage(Handler):
+    def get(self):
+        items = self.request.get_all("food")
+        self.render("shopping_list.html", items = items)
+
+
+# ASCII CHAN
+
+art_key = db.Key.from_path('ASCIIChan', 'arts')
+
 
 class Art(db.Model):
     title = db.StringProperty(required = True)
@@ -301,7 +322,34 @@ class AsciiHandler(Handler):
             error = "we need both a title and some artwork!"
             self.render_front(title, art, error)
 
-# Blog
+# BLOG
+class Handler(webapp2.RequestHandler):
+    def write(self, *a, **kw):
+        self.response.out.write(*a, **kw)
+    
+    def render(self, template, **kw):
+        self.write(self.render_str(template, **kw))
+    
+    def render_str(self, template, **params):
+        params['user'] = self.user
+        return render_str(template, **params)
+    
+    def set_secure_cookie(self, name, val):
+    # code to come
+    def read_secure_cookie(self, name):
+    # code to come
+    def login(self, user):
+    # code to come
+    def logout(self):
+    # code to come
+    def initialize(self, **kw):
+# code to come
+
+
+def render_post(response, post):
+    response.out.write('<b>' + post.subject + '</b><br>')
+    response.out.write(post.content)
+
 def blog_key(name = 'default'):
     return db.Key.from_path('blogs', name)
 
@@ -313,6 +361,8 @@ class Post(db.Model):
     last_modified = db.DateTimeProperty(auto_now = True)
 
 class BlogHandler(Handler):
+
+
     def get(self):
         posts = db.GqlQuery("SELECT * FROM Post ORDER by created DESC LIMIT 10")
         self.render('blog.html', posts=posts)
@@ -342,70 +392,65 @@ class Permalink(Handler):
         s = Post.get_by_id(int(post_id))
         self.render('blogpost.html', posts=[s])
 
-
-# Cookie
-
-def hash_str(s):
-    return hmac.new(SECRET, s).hexdigest()
-
-def make_secure_val(s):
-    return "%s|%s" % (s, hash_str(s))
-
-def check_secure_val(h):
-    #my implementation
-    #l =  h.find(",")
-    #print h[0:l]
-    # if hash_str(h[0:l]) == h[l+1:]:
-    #    return h[0:l]
-    # steve's implementation
-    val = h.split('|')[0]
-    if h == make_secure_val(val):
-        return val
-
-
-def make_salt():
-    return "".join(random.choice(letters) for a in range(5))
-
-def make_pw_hash(name, pw, salt=None):
-    if not salt:
-        salt = make_salt()
-    h = hashlib.sha256(name + pw + salt).hexdigest()
-    return "%s|%s" % (h, salt)
-
-def valid_pw(name, pw, h):
-    salt = h.split('|')[1]
-    return h == make_pw_hash(name, pw, salt)
-#    return h == make_pw_hash(name, pw, h[-5:])
-
-class CookieCount(Handler):
+class SignupHandler(Handler):
     def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        visits = 0
-        visit_cookie_str = self.request.cookies.get('visits')
-        if visit_cookie_str:
-            cookie_val= check_secure_val(visit_cookie_str)
-            if cookie_val:
-                visits = int(cookie_val)
-        # make sure visits is an int
-        #if visits.isdigit():
-        #    visits= int(visits) + 1
-        #else:
-        #    visits = 0
-        visits += 1
+        self.render('signup.html')
+    
+    def post(self):
+        have_error =False
+        username = self.request.get("username")
+        password= self.request.get("password")
+        verify = self.request.get("verify")
+        email = self.request.get("email")
         
-        new_cookie_val = make_secure_val(str(visits))
+        params = dict(username = username, email = email)
+        username = valid_username(username)
         
-        self.response.headers.add_header('Set-Cookie', 'visits=%s' % new_cookie_val)
-
-        if visits > 1000:
-            self.write("You are the best ever")
+        username_cookie_str = self.request.cookies.get('username')
+        if username_cookie_str:
+            cookie_val= check_secure_val(username_cookie_str)
+            if cookie_val and username == cookie_val:
+                params['error_username'] = "That user already exists."
+                have_error = True
+            elif not valid_username(username):
+                params['error_username'] = "That's not a valid username."
+                have_error = True
+        
+        if not valid_password(password):
+            params['error_password'] = "That's not a valid password."
+            have_error = True
+        elif password != verify:
+            params['error_verify'] = "Your password's didn't match."
+            have_error = True
+        
+        if not valid_email(email):
+            params['error_email'] = "That's not a valid email."
+            have_error = True
+        
+        if have_error:
+            self.render('signup.html', **params)
         else:
-            self.write("You've been here %s times!" % visits)
+            self.response.headers['Content-Type'] = 'text/plain'
+            new_cookie_val = make_secure_val(str(username))
+            self.response.headers.add_header('Set-Cookie', 'username=%s; Path=/' % new_cookie_val)
+            self.redirect('/blog/welcome')
+
+class Welcome(Handler):
+    def get(self):
+        username_cookie_str = self.request.cookies.get('username')
+        if username_cookie_str:
+            cookie_val= check_secure_val(username_cookie_str)
+            if cookie_val:
+                self.render("welcome.html", username = cookie_val)
+        else:
+            self.redirect("/blog/signup")
+
+
 
 app = webapp2.WSGIApplication([
                                 ('/',                MainPage), 
-                                ('/thanks',          ThanksHandler), 
-                                ('/form',            FormHandler), 
+                               #('/thanks',          ThanksHandler),
+                               #('/form',            FormHandler),
                                 ('/rot13',           RotHandler), 
                                 ('/blog/signup',     SignupHandler),
                                 ('/blog/welcome',    Welcome),
