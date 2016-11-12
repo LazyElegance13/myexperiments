@@ -19,6 +19,7 @@ import random
 import logging
 import json
 import time
+from datetime import datetime, timedelta
 
 from google.appengine.api import memcache
 from google.appengine.ext import db
@@ -220,53 +221,102 @@ class Post(db.Model):
              'last_modified' : self.last_modified.strftime(time_fmt)}
         return d
 
-def latest_content(update = False):
-    key = 'topblog'
-    posts = memcache.get(key)
-    query_time = memcache.get('query')
-    logging.error(query_time)
-    if posts is None or update:
-        logging.error("DB QUERY")
-        posts = Post.all().order('-created')
-        
-        posts = list(posts) # prevents running multiple queries
-        memcache.set(key, posts)
-        query_time = time.time()
-        memcache.set('query', query_time)
-    return posts, query_time
+#def latest_content(update = False):
+#    key = 'topblog'
+#    posts = memcache.get(key)
+#    query_time = memcache.get('query')
+#    logging.error(query_time)
+#    if posts is None or update:
+#        logging.error("DB QUERY")
+#        posts = Post.all().order('-created')
+#        
+#        posts = list(posts) # prevents running multiple queries
+#        memcache.set(key, posts)
+#        query_time = time.time()
+#        memcache.set('query', query_time)
+#    return posts, query_time
+#
+#def query(age):
+#    query = 'Queried %d seconds ago'
+#    age = int(age)
+#    return query % age
 
-def query(age):
-    query = 'Queried %d seconds ago'
+# steve's implemntation of HW6
+def age_set(key, val):
+    save_time = datetime.utcnow()
+    memcache.set(key, (val, save_time))
+
+def age_get(key):
+    r = memcache.get(key)
+    if r:
+        val, save_time = r
+        age = (datetime.utcnow() - save_time).total_seconds()
+    else:
+        val, age = None, 0
+
+    return val, age
+
+def add_post(ip, post):
+    post.put()
+    get_posts(update = True)
+    return str(post.key().id())
+
+def get_posts(update = False):
+    q = Post.all().order('-created').fetch(limit = 10)
+    mc_key = 'BLOGS'
+
+    posts, age = age_get(mc_key)
+    if update or posts is None:
+        posts = list(q)
+        age_set(mc_key, posts)
+    return posts, age
+
+def age_str(age):
+    s = 'queried %s seconds ago'
     age = int(age)
-    return query % age
+    if age == 1:
+        s = s.replace('seconds', 'second')
+    return s % age
 
 class BlogFront(Handler):
     def get(self):
-        posts, start = latest_content()
-        
+        #        posts, start = latest_content()
+        posts, age = get_posts()
         #        posts = db.GqlQuery("SELECT * FROM Post ORDER by created DESC LIMIT 10")
         if self.format == 'html':
-            self.render('blog.html', posts = posts,
-                        last_query = query(time.time() - start))
+            #            self.render('blog.html', posts = posts,
+            #           last_query = query(time.time() - start))
+            self.render('blog.html', posts = posts, last_query = age_str(age))
         else:
             return self.render_json([p.as_dict() for p in posts])
 
 class Permalink(Handler):
     def get(self, post_id):
-        key = db.Key.from_path('Post', int(post_id), parent = blog_key())
-        pquery_time = memcache.get('pquery')
-        if memcache.get(str(key)):
-            post = memcache.get(str(key))
-        else:
+
+        post_key = 'Post_' + post_id
+        post, age = age_get(post_key)
+        #key = db.Key.from_path('Post', int(post_id), parent = blog_key())
+        #pquery_time = memcache.get('pquery')
+        #if memcache.get(str(key)):
+        #post = memcache.get(str(key))
+        # else:
+            # post = db.get(key)
+            #memcache.set(str(key), post)
+            #   pquery_time = time.time()
+            # memcache.set('pquery', pquery_time)
+        if not post:
+            key = db.Key.from_path('Post', int(post_id), parent = blog_key())
             post = db.get(key)
-            memcache.set(str(key), post)
-            pquery_time = time.time()
-            memcache.set('pquery', pquery_time)
+            age_set(post_key, post)
+            age = 0
+
         if not post:
             self.error(404)
             return
+
         if self.format == 'html':
-            self.render('permalink.html', post=post, last_query = query(time.time() - pquery_time))
+        #           self.render('permalink.html', post=post, last_query = query(time.time() - pquery_time))
+            self.render('permalink.html', post=post, last_query = age_str(age))
         else:
             return self.render_json(post.as_dict())
 
