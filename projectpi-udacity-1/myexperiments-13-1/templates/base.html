@@ -8,7 +8,7 @@
         <title>PT Blog</title>
     </head>
     
-    <body style="margin: 0">
+    <body>
         
         <a href="/blog" class="main-title">
             PT Blog
@@ -24,14 +24,22 @@
             {% endif %}
             </div>
             <div id="content"
-        {% block content %}
+    
+            {% block content %}
         
-        {% endblock %}
+        
+            {% endblock %}
+        
         </div>
-        <div>
+       
+       <div>
             <em>
                 Brought to you by Jamuura!
             </em>
+        </div>
+        
+        <div class="age">
+            {{last_query}}
         </div>
     </body>
     

@@ -5,7 +5,6 @@
     @author: Lucifer_Angel
     """
 import re
-
 import os
 import jinja2
 import webapp2
@@ -18,6 +17,8 @@ from xml.dom import minidom
 from string import letters
 import random
 import logging
+import json
+import time
 
 from google.appengine.api import memcache
 from google.appengine.ext import db
@@ -114,6 +115,11 @@ class Handler(webapp2.RequestHandler):
 
     def render(self, template, **kw):
         self.write(self.render_str(template, **kw))
+
+    def render_json(self, d):
+        json_txt = json.dumps(d)
+        self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+        self.write(json_txt)
     
     def set_secure_cookie(self, name, val):
         cookie_val = make_secure_val(val)
@@ -135,6 +141,11 @@ class Handler(webapp2.RequestHandler):
         webapp2.RequestHandler.initialize(self, *a, **kw)
         uid = self.read_secure_cookie('user_id')
         self.user = uid and User.by_id(int(uid))
+        
+        if self.request.url.endswith('.json'):
+            self.format = 'json'
+        else:
+            self.format = 'html'
 
 def render_post(response, post):
     response.out.write('<b>' + post.subject + '</b><br>')
@@ -190,6 +201,7 @@ def blog_key(name = 'default'):
     return db.Key.from_path('blogs', name)
 
 
+
 class Post(db.Model):
     subject = db.StringProperty(required = True)
     content = db.TextProperty(required = True)
@@ -199,24 +211,64 @@ class Post(db.Model):
     def render(self):
         self._render_text = self.content.replace('\n', '<br>')
         return render_str("blogpost.html", p = self)
+    
+    def as_dict(self):
+        time_fmt = '%c'
+        d = {'subject': self.subject,
+             'content': self.content,
+             'created': self.created.strftime(time_fmt),
+             'last_modified' : self.last_modified.strftime(time_fmt)}
+        return d
+
+def latest_content(update = False):
+    key = 'topblog'
+    posts = memcache.get(key)
+    query_time = memcache.get('query')
+    logging.error(query_time)
+    if posts is None or update:
+        logging.error("DB QUERY")
+        posts = Post.all().order('-created')
+        
+        posts = list(posts) # prevents running multiple queries
+        memcache.set(key, posts)
+        query_time = time.time()
+        memcache.set('query', query_time)
+    return posts, query_time
+
+def query(age):
+    query = 'Queried %d seconds ago'
+    age = int(age)
+    return query % age
 
 class BlogFront(Handler):
     def get(self):
-        posts = greetings = Post.all().order('-created')
+        posts, start = latest_content()
+        
         #        posts = db.GqlQuery("SELECT * FROM Post ORDER by created DESC LIMIT 10")
-        self.render('blog.html', posts = posts)
+        if self.format == 'html':
+            self.render('blog.html', posts = posts,
+                        last_query = query(time.time() - start))
+        else:
+            return self.render_json([p.as_dict() for p in posts])
 
 class Permalink(Handler):
     def get(self, post_id):
         key = db.Key.from_path('Post', int(post_id), parent = blog_key())
-        post = db.get(key)
-
+        pquery_time = memcache.get('pquery')
+        if memcache.get(str(key)):
+            post = memcache.get(str(key))
+        else:
+            post = db.get(key)
+            memcache.set(str(key), post)
+            pquery_time = time.time()
+            memcache.set('pquery', pquery_time)
         if not post:
             self.error(404)
             return
-        
-        self.render('permalink.html', post=post)
-
+        if self.format == 'html':
+            self.render('permalink.html', post=post, last_query = query(time.time() - pquery_time))
+        else:
+            return self.render_json(post.as_dict())
 
 class NewBlogPost(Handler):
     def get(self):
@@ -235,6 +287,7 @@ class NewBlogPost(Handler):
         if subject and content:
             p = Post(parent = blog_key(), subject = subject, content = content)
             p.put()
+            latest_content(True)
             self.redirect("/blog/%s"% str(p.key().id()))
         else:
             error = "we need both a subject and content!"
@@ -310,6 +363,12 @@ class Login(Handler):
 class Logout(Handler):
     def get(self):
         self.logout()
+        self.redirect('/signup')
+
+
+class Flush(Handler):
+    def get(self):
+        memcache.flush_all()
         self.redirect('/blog')
 
 
@@ -527,19 +586,20 @@ class Welcome(Handler):
 
 
 app = webapp2.WSGIApplication([
-                               ('/',                MainPage),
-                               #('/thanks',         ThanksHandler),
-                               #('/form',           FormHandler),
-                               ('/rot13',           RotHandler),
-                               ('/signup',          Register),
-                               ('/welcome',         Welcome),
-                               ('/fizz',            FizzHandler), 
-                               ('/ascii',           AsciiHandler), 
-                               ('/blog',            BlogFront),
-                               ('/login',           Login),
-                               ('/logout',          Logout),
-                               ('/blog/([0-9]+)',   Permalink),
-                               ('/cookie',          CookieCount),
-                               ('/blog/newpost',    NewBlogPost)],
+                               ('/',                        MainPage),
+                               #('/thanks',                 ThanksHandler),
+                               #('/form',                   FormHandler),
+                               ('/rot13',                   RotHandler),
+                               ('/signup',                  Register),
+                               ('/welcome',                 Welcome),
+                               ('/fizz',                    FizzHandler),
+                               ('/ascii',                   AsciiHandler),
+                               ('/blog/?(?:.json)?',        BlogFront),
+                               ('/flush',                   Flush),
+                               ('/login',                   Login),
+                               ('/logout',                  Logout),
+                               ('/blog/([0-9]+)(?:.json)?', Permalink),
+                               ('/cookie',                  CookieCount),
+                               ('/blog/newpost',            NewBlogPost)],
                               debug=True)
 
