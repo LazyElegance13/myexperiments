@@ -1,0 +1,18 @@
+body {
+    position:relative;
+    width:800px;
+    display:block;
+    margin:auto;
+    padding:10px;
+    background-color:orange;
+    color:green;
+    font-family:cursive,Helvitica,Arial,sans-serif;
+}
+
+.main-header {
+    font-family:fantasy;
+    font-style:normal;
+    font-weight:bold;
+    font-size:36px;
+    color:red;
+}

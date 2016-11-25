@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 
 <html>
-    
+
     <head>
-        <link type="text/css" rel="stylesheet" href="/static/main.css" />
-        
+        <link rel="stylesheet" type="text/css" href="/static/main.css">
+
         <title>PT Blog</title>
     </head>
-    
+
     <body>
-        
+
         <a href="/blog" class="main-title">
             PT Blog
         </a>
-        
+
         <div class="login-area">
             {% if user %}
             {{user.name}} (<a class="login-link" href="/logout">logout</a>)
@@ -22,25 +22,25 @@
             |
             <a class="login-link" href="/signup">signup</a>
             {% endif %}
-            </div>
-            <div id="content"
-    
-            {% block content %}
-        
-        
-            {% endblock %}
-        
         </div>
-       
+        <div id="content">
+
+            {% block content %}
+
+
+            {% endblock %}
+
+        </div>
+
        <div>
             <em>
                 Brought to you by Jamuura!
             </em>
         </div>
-        
+
         <div class="age">
             {{last_query}}
         </div>
     </body>
-    
+
 </html>

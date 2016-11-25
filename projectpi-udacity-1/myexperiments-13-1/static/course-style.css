@@ -1,0 +1,70 @@
+/* h1 {
+    color:blue;
+    background-color:yellow;
+}
+p {
+    color:red;
+}
+
+nav {
+    align-items: center;
+    font-style: italic;
+}
+*/
+
+/*add important to the attribute to avoid it being overwritten*/
+/*how to add your own font*/
+
+/*@font-face{
+    font-family: mySpecialFont;
+    src: url('filename.tff');
+}
+h1 {
+    font-family: mySpecialFont;
+    font-variant: small-caps;
+    text-align: left;
+    line-height: 125%;
+}
+overflow
+
+*/
+h1{
+  font-family: helvetica, cursive;
+  font-size: 40px;
+  background-color:lavender;
+  color: maroon;
+  text-align: center;
+  font-variant: small-caps;
+  padding:10px;
+  margin: 0;
+  display:block;
+}
+
+nav{
+  font-family: helvetica;
+  text-align: center;
+  color: purple;
+  font-size: 20px;
+  background-color: #C70039;
+  padding: 10px;
+  margin: 0;
+  display:block;
+  text-transform: full-width;
+}
+h2 {
+  font-family: helvetica;
+  font-variant: small-caps;
+  font-size: 20px;
+  color: green;
+  background-color: #DAF7A6;
+  margin:0;
+}
+p, ul, summary{
+  font-family: helvetica;
+  font-size: 15px;
+  color: maroon;
+}
+
+footer {
+  background-color: lavender;
+}
